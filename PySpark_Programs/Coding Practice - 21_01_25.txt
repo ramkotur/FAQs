@@ -1,0 +1,697 @@
+Q1. Table : student_marks
+
+columns: Name, Subject, Marks
+
+Ex:
+
+anand, math, 89
+
+anand, science, 78
+
+anand, english, 30
+
+prasad, math, 89
+
+prasad, science, 67
+
+prasad, english, 56
+
+student is considered pass if he/she scores >= 40 in all subjects
+
+find names only of students who passed in all subjects
+
+Answer:
+SQL Query :
+
+SELECT Name
+FROM student_marks
+GROUP BY Name
+HAVING MIN(Marks) >= 40;
+ 
+Pyspark Code :
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col,min
+
+spark = SparkSession.builder.appName("StudentsPassAllSubjects").getOrCreate()
+
+data = [
+    ("anand", "math", 89),
+    ("anand", "science", 78),
+    ("anand", "english", 30),
+    ("prasad", "math", 89),
+    ("prasad", "science", 67),
+    ("prasad", "english", 56)
+]
+
+columns = ["Name","Subject","marks"]
+
+df = spark.createDataFrame(data,columns)
+
+passed_students =df.groupBy("Name").agg(min("marks").alias("min_marks")).filter(col("min_marks")>=40)
+
+passed_students.select("Name").show()
+
+Using Python:
+
+student_marks = [
+    ('anand', 'math', 89),
+    ('anand', 'science', 78),
+    ('anand', 'english', 30),
+    ('prasad', 'math', 89),
+    ('prasad', 'science', 67),
+    ('prasad', 'english', 56),
+]
+
+from collections import defaultdict
+
+students = defaultdict(list)
+
+for name, subject, marks in student_marks:
+    students[name].append((subject, marks))
+
+def find_passed_students(students):
+    passed_students = []
+    
+    for student, subjects in students.items():
+        # Check if all subjects have marks >= 40
+        if all(marks >= 40 for subject, marks in subjects):
+            passed_students.append(student)
+    
+    return passed_students
+
+passed_students = find_passed_students(students)
+
+print("Students who passed in all subjects:", passed_students)
+
+
+===================================
+
+Q2. Write a query to find the second highest salary from an Emp table.
+
+
+EmployeeID	Name	Gender	JobTitle	Salary	City
+1	Vinay	Male	Sales	25,000	Delhi
+2	Swathi	Female	Sales	46,000	Hyderabad
+3	Suman	Male	Sales	62,000	Hyderabad
+4	Hemanth	Male	Sales	43,000	Delhi
+5	Prasad	Male	Sales	50,000	Kerala
+
+
+Answer:
+SQL Query:
+
+SELECT salary
+FROM (
+SELECT salary, ROW_NUMBER() OVER (ORDER BY salary DESC) AS row_num
+FROM Emp
+)
+WHERE row_num = 2;
+
+
+Pyspark Code:
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, row_number
+from pyspark.sql.window import Window
+
+
+spark = SparkSession.builder.appName("SecondHighestSalary").getOrCreate()
+
+data = [
+    (1, "Vinay", "Male", "Sales", 25000, "Delhi"),
+    (2, "Swathi", "Female", "Sales", 46000, "Hyderabad"),
+    (3, "Suman", "Male", "Sales", 62000, "Hyderabad"),
+    (4, "Hemanth", "Male", "Sales", 43000, "Delhi"),
+    (5, "Prasad", "Male", "Sales", 50000, "Kerala")
+]
+
+columns = ["EmployeeID", "Name", "Gender", "JobTitle", "Salary", "City"]
+
+emp_df = spark.createDataFrame(data, columns)
+
+window_spec = Window.orderBy(col("Salary").desc())
+
+emp_with_row_number = emp_df.withColumn("row_num", row_number().over(window_spec))
+
+second_highest_salary_df = emp_with_row_number.filter(col("row_num") == 2)
+
+second_highest_salary_df.select("Salary").show()
+
+
+Python Code (with pandas and row_number Logic):
+
+import pandas as pd
+
+data = {
+    'EmployeeID': [1, 2, 3, 4, 5],
+    'Name': ['Vinay', 'Swathi', 'Suman', 'Hemanth', 'Prasad'],
+    'Gender': ['Male', 'Female', 'Male', 'Male', 'Male'],
+    'JobTitle': ['Sales', 'Sales', 'Sales', 'Sales', 'Sales'],
+    'Salary': [25000, 46000, 62000, 43000, 50000],
+    'City': ['Delhi', 'Hyderabad', 'Hyderabad', 'Delhi', 'Kerala']
+}
+
+df = pd.DataFrame(data)
+
+df_sorted = df.sort_values(by='Salary', ascending=False).reset_index(drop=True)
+
+df_sorted['row_num'] = df_sorted.index + 1  # Adding 1 because index starts from 0
+
+second_highest_salary = df_sorted[df_sorted['row_num'] == 2]
+
+print(second_highest_salary[['Salary']])
+
+
+=============================================================
+
+Q3) Table: customer
+col
+1
+1
+1
+1
+null
+	Table : product
+col
+1
+1
+1
+1
+null
+Write a query and no of rows if we apply below joins:
+1. left join
+2. right join
+3. inner join
+
+
+Answer:
+
+ A. SQL Query:
+	1. Left Join:
+	
+	SELECT customer.col, product.col
+	FROM customer
+	LEFT JOIN product ON customer.col = product.col;
+	
+	Number of rows in result: 5 (all customer rows are included).
+	
+	
+	2. Right Join:
+	
+	SELECT customer.col, product.col
+	FROM customer
+	RIGHT JOIN product ON customer.col = product.col;
+	
+	Number of rows in result: 5 (all product rows are included).
+	
+	3. Inner Join:
+	
+	SELECT customer.col, product.col
+	FROM customer
+	INNER JOIN product ON customer.col = product.col;
+
+	
+	Number of rows in result: 4 (only matching rows are included).
+	
+	
+ B. Pyspark Code:
+
+from pyspark.sql import SparkSession
+from pyspark.sql import Row
+
+spark = SparkSession.builder.appName("JoinExample").getOrCreate()
+
+customer_data = [Row(col=1), Row(col=1), Row(col=1), Row(col=1), Row(col=None)]
+product_data = [Row(col=1), Row(col=1), Row(col=1), Row(col=1), Row(col=None)]
+
+customer_df = spark.createDataFrame(customer_data)
+product_df = spark.createDataFrame(product_data)
+
+# Left Join
+left_join_df = customer_df.join(product_df, customer_df.col == product_df.col, "left")
+print("Left Join Result:")
+left_join_df.show()
+print(f"Number of rows in left join: {left_join_df.count()}")
+
+# Right Join
+right_join_df = customer_df.join(product_df, customer_df.col == product_df.col, "right")
+print("Right Join Result:")
+right_join_df.show()
+print(f"Number of rows in right join: {right_join_df.count()}")
+
+# Inner Join
+inner_join_df = customer_df.join(product_df, customer_df.col == product_df.col, "inner")
+print("Inner Join Result:")
+inner_join_df.show()
+print(f"Number of rows in inner join: {inner_join_df.count()}")
+
+
+ C. Python Code:
+ 
+ import pandas as pd
+
+customer_data = {'col': [1, 1, 1, 1, None]}
+product_data = {'col': [1, 1, 1, 1, None]}
+
+customer_df = pd.DataFrame(customer_data)
+product_df = pd.DataFrame(product_data)
+
+# Left Join
+left_join_df = customer_df.merge(product_df, on='col', how='left')
+print("Left Join Result:")
+print(left_join_df)
+print(f"Number of rows in left join: {len(left_join_df)}")
+
+# Right Join
+right_join_df = customer_df.merge(product_df, on='col', how='right')
+print("\nRight Join Result:")
+print(right_join_df)
+print(f"Number of rows in right join: {len(right_join_df)}")
+
+# Inner Join
+inner_join_df = customer_df.merge(product_df, on='col', how='inner')
+print("\nInner Join Result:")
+print(inner_join_df)
+print(f"Number of rows in inner join: {len(inner_join_df)}")
+
+============================
+
+Q4) Below is the transaction table of users in a particular food ordering app.
+a) Write a query to obtain the third transaction of every user. Output the user id, spend and transaction date.
+b) Write a query to fine the latest transaction of all user id 
+   who have no of transaction below 3 and 3rd transaction of all other who have 3 or more transactions.
+ 
+
+user_id	spend	transaction_date
+111	100.5	1/8/2022 12:00
+111	55	1/10/2022 12:00
+121	36	1/18/2022 12:00
+145	24.99	1/26/2022 12:00
+111	89.5	2/5/2022 12:00
+
+Answer:
+
+ A. SQL Query:
+	a) Query to obtain the third transaction of every user.
+	
+	WITH RankedTransactions AS (
+		SELECT 
+			user_id,
+			spend,
+			transaction_date,
+			ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY transaction_date) AS transaction_rank
+		FROM transactions
+	)
+	SELECT 
+		user_id,
+		spend,
+		transaction_date
+	FROM RankedTransactions
+	WHERE transaction_rank = 3;
+	
+	b) Query to find the latest transaction of users with fewer than 3 transactions and the third transaction of users with 3 or more transactions.
+	
+	WITH RankedTransactions AS (
+		SELECT 
+			user_id,
+			spend,
+			transaction_date,
+			ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY transaction_date) AS transaction_rank,
+			COUNT(*) OVER (PARTITION BY user_id) AS total_transactions
+		FROM transactions
+	)
+	SELECT 
+		user_id,
+		spend,
+		transaction_date
+	FROM RankedTransactions
+	WHERE 
+		(total_transactions < 3 AND transaction_rank = total_transactions)
+		OR (total_transactions >= 3 AND transaction_rank = 3);
+		
+ B. Pyspark Code:
+ 
+a) PySpark DataFrame Code to Obtain the Third Transaction of Every User
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, row_number
+from pyspark.sql.window import Window
+
+spark = SparkSession.builder.appName("TransactionApp").getOrCreate()
+
+data = [
+    (111, 100.5, "1/8/2022 12:00"),
+    (111, 55, "1/10/2022 12:00"),
+    (121, 36, "1/18/2022 12:00"),
+    (145, 24.99, "1/26/2022 12:00"),
+    (111, 89.5, "2/5/2022 12:00")
+]
+
+df = spark.createDataFrame(data, ["user_id", "spend", "transaction_date"])
+
+df = df.withColumn("transaction_date", col("transaction_date").cast("timestamp"))
+
+window_spec = Window.partitionBy("user_id").orderBy("transaction_date")
+
+df_ranked = df.withColumn("rank", row_number().over(window_spec))
+
+third_transactions = df_ranked.filter(col("rank") == 3).select("user_id", "spend", "transaction_date")
+
+third_transactions.show()
+
+
+b) PySpark DataFrame Code to Find the Latest Transaction of Users with Fewer Than 3 Transactions, and the Third Transaction of Users with 3 or More Transactions
+
+from pyspark.sql.functions import count
+
+window_spec = Window.partitionBy("user_id").orderBy("transaction_date")
+
+df_ranked = df.withColumn("rank", row_number().over(window_spec))
+
+df_counts = df.groupBy("user_id").agg(count("*").alias("total_transactions"))
+
+df_with_counts = df_ranked.join(df_counts, on="user_id", how="left")
+
+result = df_with_counts.filter(
+    (col("total_transactions") < 3 & col("rank") == col("total_transactions")) | 
+    (col("total_transactions") >= 3 & col("rank") == 3)
+).select("user_id", "spend", "transaction_date")
+
+result.show()
+
+ C) Python Code:
+
+import pandas as pd
+
+data = [
+    (111, 100.5, "1/8/2022 12:00"),
+    (111, 55, "1/10/2022 12:00"),
+    (121, 36, "1/18/2022 12:00"),
+    (145, 24.99, "1/26/2022 12:00"),
+    (111, 89.5, "2/5/2022 12:00")
+]
+
+df = pd.DataFrame(data, columns=["user_id", "spend", "transaction_date"])
+
+df["transaction_date"] = pd.to_datetime(df["transaction_date"])
+
+# a) Find the third transaction of every user
+df_sorted = df.sort_values(by=["user_id", "transaction_date"])
+df_sorted["rank"] = df_sorted.groupby("user_id").cumcount() + 1
+
+third_transactions = df_sorted[df_sorted["rank"] == 3][["user_id", "spend", "transaction_date"]]
+print("Third Transaction of Each User:")
+print(third_transactions)
+
+print("\n")
+
+# b) Find the latest transaction for users with fewer than 3 transactions and the third transaction for users with 3 or more transactions
+# Get the count of transactions per user
+user_counts = df.groupby("user_id").size().reset_index(name="total_transactions")
+
+df_with_counts = df.merge(user_counts, on="user_id", how="left")
+
+df_with_counts = df_with_counts.sort_values(by=["user_id", "transaction_date"])
+df_with_counts["rank"] = df_with_counts.groupby("user_id").cumcount() + 1
+
+# Filter the users with fewer than 3 transactions to get their latest transaction
+latest_transactions = df_with_counts[df_with_counts["total_transactions"] < 3 & (df_with_counts["rank"] == df_with_counts["total_transactions"])]
+
+# Filter the users with 3 or more transactions to get their third transaction
+third_transactions_more_than_three = df_with_counts[df_with_counts["total_transactions"] >= 3 & (df_with_counts["rank"] == 3)]
+
+final_result = pd.concat([latest_transactions[["user_id", "spend", "transaction_date"]],
+                          third_transactions_more_than_three[["user_id", "spend", "transaction_date"]]])
+
+print("Latest or Third Transaction of Users:")
+print(final_result)
+
+=========================================================================
+
+Q5) Write a query to get the below output from given table.
+Table:
+student_id, Student_name, Subject, Mark
+1, ram, maths, 25
+2, ram, science, 80
+3, sunil, maths, 40
+4, sunil, science, 35
+5, abi, maths, 79
+6, abi, science, 39
+7, abi, che, 90
+ 
+output needed:
+subject,count
+maths,1
+science,2
+che,0
+ 
+count is student failed in each subject.
+
+
+Answer:
+
+A. SQL Query:
+
+	WITH ranked_students AS (
+		SELECT student_id,
+			   Student_name,
+			   Subject,
+			   Mark,
+			   ROW_NUMBER() OVER (PARTITION BY Subject ORDER BY Mark) AS row_num
+		FROM Std_dtls
+	)
+	SELECT Subject,
+		   COUNT(CASE WHEN Mark < 40 THEN 1 END) AS count
+	FROM ranked_students
+	GROUP BY Subject
+	ORDER BY Subject;
+	
+	Output:
+	Subject	count
+	che	0
+	maths	1
+	science	2
+	
+B. Pyspark Code:
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, when, count
+
+spark = SparkSession.builder.master("local").appName("Failed Students Count").getOrCreate()
+
+data = [
+    (1, "ram", "maths", 25),
+    (2, "ram", "science", 80),
+    (3, "sunil", "maths", 40),
+    (4, "sunil", "science", 35),
+    (5, "abi", "maths", 79),
+    (6, "abi", "science", 39),
+    (7, "abi", "che", 90)
+]
+
+columns = ["student_id", "Student_name", "Subject", "Mark"]
+
+df = spark.createDataFrame(data, columns)
+
+df_with_failure = df.withColumn("Failed", when(col("Mark") < 40, 1).otherwise(0))
+
+result = df_with_failure.groupBy("Subject").agg(
+    count(when(col("Failed") == 1, 1)).alias("count")
+)
+
+result.show()
+
++--------+-----+
+| Subject|count|
++--------+-----+
+|   maths|    1|
+| science|    2|
+|     che|    0|
++--------+-----+
+
+
+C. Python Code:
+
+import pandas as pd
+
+data = {
+    "student_id": [1, 2, 3, 4, 5, 6, 7],
+    "Student_name": ["ram", "ram", "sunil", "sunil", "abi", "abi", "abi"],
+    "Subject": ["maths", "science", "maths", "science", "maths", "science", "che"],
+    "Mark": [25, 80, 40, 35, 79, 39, 90]
+}
+
+df = pd.DataFrame(data)
+
+df['Failed'] = df['Mark'].apply(lambda x: 1 if x < 40 else 0)
+
+result = df.groupby('Subject')['Failed'].sum().reset_index()
+
+result.rename(columns={'Failed': 'count'}, inplace=True)
+
+all_subjects = ['maths', 'science', 'che']
+result = result.set_index('Subject').reindex(all_subjects, fill_value=0).reset_index()
+
+print(result)
+
+
+   Subject  count
+0    maths      1
+1  science      2
+2      che      0
+
+
+==================================================
+
+Q6. Write a SQL query to remove duplicate rows from the table.
+
+Answer: 
+
+A. SQL Query:
+
+WITH CTE AS (
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY EmployeeID ORDER BY EmployeeID) AS RowNum
+    FROM Employee
+)
+DELETE FROM Employee
+WHERE EmployeeID IN (SELECT EmployeeID FROM CTE WHERE RowNum > 1);
+
+	
+B. Pyspark Code:
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import row_number
+from pyspark.sql.window import Window
+
+spark = SparkSession.builder.appName("RemoveDuplicates").getOrCreate()
+
+data = [
+    (1, "John", "HR"),
+    (1, "John", "HR"),
+    (2, "Jane", "Finance"),
+    (3, "Doe", "IT"),
+    (2, "Jane", "Finance"),
+]
+
+columns = ["EmployeeID", "EmployeeName", "Department"]
+
+df = spark.createDataFrame(data, columns)
+
+windowSpec = Window.partitionBy("EmployeeID").orderBy("EmployeeID")
+
+df_with_row_number = df.withColumn("RowNum", row_number().over(windowSpec))
+
+df_no_duplicates = df_with_row_number.filter(df_with_row_number.RowNum == 1).drop("RowNum")
+
+df_no_duplicates.show()
+
+
+C. Python Code:
+
+employee_data = [
+    (1, "John", "HR"),
+    (1, "John", "HR"),
+    (2, "Jane", "Finance"),
+    (3, "Doe", "IT"),
+    (2, "Jane", "Finance"),
+]
+
+seen = set()
+unique_employee_data = []
+
+for record in employee_data:
+    employee_id = record[0]
+    if employee_id not in seen:
+        seen.add(employee_id)
+        unique_employee_data.append(record)
+
+for record in unique_employee_data:
+    print(record)
+	
+=================================================================
+
+Q7: Write a SQL query to list the employees who have the same job title, 
+ordered by the number of employees in each title (i.e., more common titles should appear first).
+
+Answer :
+
+A. SQL Query:
+
+	WITH JobTitleCounts AS (
+		SELECT job_title, COUNT(*) AS title_count
+		FROM employees
+		GROUP BY job_title
+	),
+	EmployeeRanked AS (
+		SELECT e.employee_id, e.employee_name, e.job_title, j.title_count,
+			   ROW_NUMBER() OVER (PARTITION BY e.job_title ORDER BY j.title_count DESC) AS row_num
+		FROM employees e
+		JOIN JobTitleCounts j ON e.job_title = j.job_title
+	)
+	SELECT employee_id, employee_name, job_title, title_count
+	FROM EmployeeRanked
+	ORDER BY title_count DESC, row_num;
+	
+	
+B. Pyspark Code:
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, count, row_number
+from pyspark.sql.window import Window
+
+spark = SparkSession.builder.appName("EmployeeJobTitle").getOrCreate()
+
+data = [
+    (1, 'Alice', 'Software Engineer'),
+    (2, 'Bob', 'Software Engineer'),
+    (3, 'Charlie', 'Data Scientist'),
+    (4, 'David', 'Software Engineer'),
+    (5, 'Eva', 'Data Scientist'),
+    (6, 'Frank', 'Manager')
+]
+
+columns = ['employee_id', 'employee_name', 'job_title']
+
+df = spark.createDataFrame(data, columns)
+
+job_title_counts = df.groupBy('job_title').agg(count('*').alias('title_count'))
+
+df_with_count = df.join(job_title_counts, on='job_title', how='inner')
+
+window_spec = Window.partitionBy('job_title').orderBy(col('title_count').desc())
+
+df_with_row_number = df_with_count.withColumn('row_num', row_number().over(window_spec))
+
+result = df_with_row_number.select('employee_id', 'employee_name', 'job_title', 'title_count') \
+    .orderBy(col('title_count').desc(), 'job_title', 'row_num')
+
+result.show(truncate=False)
+
+
+C. Python Code:
+
+import pandas as pd
+
+data = [
+    (1, 'Alice', 'Software Engineer'),
+    (2, 'Bob', 'Software Engineer'),
+    (3, 'Charlie', 'Data Scientist'),
+    (4, 'David', 'Software Engineer'),
+    (5, 'Eva', 'Data Scientist'),
+    (6, 'Frank', 'Manager')
+]
+
+df = pd.DataFrame(data, columns=['employee_id', 'employee_name', 'job_title'])
+
+title_counts = df['job_title'].value_counts().reset_index()
+title_counts.columns = ['job_title', 'title_count']
+
+df_with_count = pd.merge(df, title_counts, on='job_title', how='inner')
+
+df_sorted = df_with_count.sort_values(by=['title_count', 'job_title', 'employee_id'], ascending=[False, True, True])
+
+df_sorted['row_num'] = df_sorted.groupby('job_title').cumcount() + 1
+
+df_final = df_sorted[['employee_id', 'employee_name', 'job_title', 'title_count', 'row_num']]
+
+print(df_final)
